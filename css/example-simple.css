@@ -1,0 +1,24 @@
+.ribbon .ribbon-item {
+    padding: 3px;
+}
+
+.ribbon .ribbon-item.selected {
+    background-color: #cfc;
+}
+
+.body-text {
+    height: 400px;
+    margin-top: 20px;
+    overflow-y: scroll;
+    padding: 20px;
+    position: relative;
+    width: 80%;
+}
+
+.body-text tr.highlighted {
+    background-color: #cfc;
+}
+
+.body-text .contentsubtitle {
+    font-weight: bold;
+}
