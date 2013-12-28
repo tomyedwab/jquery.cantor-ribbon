@@ -1,0 +1,26 @@
+.ribbon .ribbon-item {
+    overflow-x: hidden;
+    padding: 8px;
+    white-space: nowrap;
+}
+
+.ribbon .ribbon-item.selected {
+    background-color: #cfc;
+}
+
+.ribbon .ribbon-item.current-item {
+    font-weight: bold;
+}
+
+.ribbon.year .ribbon-item {
+    font-size: 140%;
+    padding-right: 180px;
+}
+
+.ribbon .invisible-item {
+    display: none;
+    border: 0;
+    height: 0;
+    padding: 0;
+    width: 0;
+}

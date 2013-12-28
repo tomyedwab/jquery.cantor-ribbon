@@ -11,9 +11,11 @@
  * of the ribbon.
  */
 
+// TODO: Handle window resize
+
 (function( $ ) {
 
-    var CantorRibbonView = function($el, generator) {
+    var CantorRibbonView = function($el, generator, startIndex) {
         // Call the generator to create a subview and add it to the ribbon
         this.generateElement = function(index, adjacentElement) {
             // Generate the element and add it to the container element
@@ -65,7 +67,7 @@
                 if (this.dragState && this.dragState.type == "interp") {
                     this.dragState = null;
                 }
-                this.goToElement(index);
+                this.goToIndex(index);
             }, this));
 
             // Position the element
@@ -101,9 +103,23 @@
             }
 
             $.each(this.subViews, $.proxy(function(idx, element) {
+                if (this.offset + element.anchorPos + element.width < 0) {
+                    // Fell off to the left
+                    element.view.remove();
+                    this.minIndex = Math.max(this.minIndex, idx * 1 + 1);
+                    delete this.subViews[idx];
+                    return;
+                }
+                if (this.offset + element.anchorPos > width) {
+                    // Fell off to the right
+                    element.view.remove();
+                    this.maxIndex = Math.min(this.maxIndex, idx * 1 - 1);
+                    delete this.subViews[idx];
+                    return;
+                }
                 element.view.css({ left: this.offset + element.anchorPos });
                 var selected = (this.offset + element.anchorPos <= width / 2) &&
-                    (this.offset + element.anchorPos + element.width >= width / 2);
+                    (this.offset + element.anchorPos + element.width > width / 2);
                 if (selected && this.selectedIndex != element.index) {
                     this.$el.trigger("ribbonSelected", element.index);
                 }
@@ -112,7 +128,7 @@
         };
 
         // Navigate to a particular element on the ribbon
-        this.goToElement = function(index) {
+        this.goToIndex = function(index) {
             // Can't navigate while the user is dragging something
             if (this.dragState != null && this.dragState.type != "interp") {
                 return;
@@ -188,14 +204,14 @@
         this.offset = this.$el.width() / 2;
 
         // Minimum and maximum indices for generated elements
-        this.minIndex = 0;
-        this.maxIndex = 0;
+        this.minIndex = startIndex;
+        this.maxIndex = startIndex;
 
         // Current height (grows to fit the tallest element ever encountered)
         this.maxHeight = 0;
 
         // Currently selected index
-        this.selectedIndex = 0;
+        this.selectedIndex = startIndex;
 
         // Cache of all our subviews by index
         this.subViews = {}
@@ -203,8 +219,8 @@
         // Drag state
         this.dragState = null;
         
-        // Create the 0-index element and add it to the ribbon
-        this.generateElement(0);
+        // Create the first element and add it to the ribbon
+        this.generateElement(startIndex);
 
         // Populate the remaining views that are initially visible
         this.updateViews();
@@ -251,8 +267,8 @@
 
                 // Find element whose center is nearest finalOffset
                 // TODO: Handle end clamping better
-                var bestElementIndex = 0;
-                var bestElementDist = Math.abs(finalOffset + this.subViews[0].centerPos);
+                var bestElementIndex = this.selectedIndex;
+                var bestElementDist = Math.abs(finalOffset + this.subViews[this.selectedIndex].centerPos);
                 $.each(this.subViews, $.proxy(function(idx, element) {
                     var dist = Math.abs(finalOffset + element.centerPos);
                     if (dist < bestElementDist) {
@@ -262,22 +278,32 @@
                 }, this));
 
                 this.dragState = null;
-                this.goToElement(bestElementIndex);
+                this.goToIndex(bestElementIndex);
 
                 event.stopImmediatePropagation();
             }
         }, this));
 
         // We're all set! Fire an initial event for the initial navigation
-        this.$el.trigger("ribbonNavigated", 0);
+        this.$el.trigger("ribbonNavigated", startIndex);
     };
 
-    $.fn.cantorRibbon = function( options ) {
+    $.fn.cantorRibbon = function(optionsOrCommand, commandOptions) {
         // Don't bind multiple times
         if (this.data('cantorRibbonView')) {
+            if (optionsOrCommand == "getSelectedIndex") {
+                return this.data('cantorRibbonView').selectedIndex;
+            }
+            if (optionsOrCommand == "goToIndex") {
+                this.data('cantorRibbonView').goToIndex(commandOptions);
+            }
             return this;
         }
-        return this.data('cantorRibbonView', new CantorRibbonView(this, options.generator));
+        return this.data('cantorRibbonView',
+            new CantorRibbonView(
+                this,
+                optionsOrCommand.generator,
+                optionsOrCommand.startIndex || 0));
     };
 
 })( jQuery );

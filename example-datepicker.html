@@ -1,0 +1,189 @@
+<html>
+  <head>
+    <title>Complex Cantor Ribbon example</title>
+    <link rel="stylesheet" type="text/css" href="css/jquery.cantor-ribbon.css" />
+    <link rel="stylesheet" type="text/css" href="css/example-datepicker.css" />
+    <script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+    <script src="jquery.cantor-ribbon.js"></script>
+
+    <script language="javascript">
+    $(function() {
+        // Initialize the ribbons to the current day, month and year
+        var currentDate = new Date();
+        // currentYear is the calendar year
+        var currentYear = currentDate.getFullYear();
+        // currentMonth is the month index starting at January, year 0 = 0
+        var currentMonth = currentDate.getMonth() + currentYear * 12;
+        // currentDay is the day index starting at January 1, year 0 = 0
+        // For simplicity we count 31 days per month, and use special cases
+        // to handle the missing days.
+        var currentDay = currentDate.getDate() - 1 + currentMonth * 31;
+
+        // Helper function to determine which day indices are actual days
+        var isValidDay = function(dayIndex) {
+            var date = dayIndex % 31;
+            var month = Math.floor(dayIndex / 31) % 12;
+
+            // Check the date against the max number of days in the month
+            var daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            if (date + 1 > daysInMonth[month]) {
+                return false;
+            }
+
+            if (month == 1 && date == 28) {
+                // Special leap year check for February
+                var year = Math.floor((dayIndex / 31) / 12);
+                if (year % 4 != 0 || (year % 100 == 0 && year % 400 != 0)) {
+                    // This is *not* a leap year; only 28 days in February
+                    return false;
+                }
+            }
+
+            // Checks pass; this is a valid date
+            return true;
+        };
+
+        // First, initialize all three ribbons with generators for each
+        // year, month, and day starting at January 1, year 0. (Only the
+        // values around the current year, month, and day will actually be
+        // generated).
+
+        $("div.ribbon.year")
+            // Initialize the ribbon
+            .cantorRibbon({
+                // Initial index to center at. Overrides the default value of 0
+                startIndex: currentYear,
+
+                // Generator function: Takes an index from -infinity..infinity
+                // and returns either a jQuery element to place on the ribbon
+                // or null, which means the sequence ends at this index.
+                generator: function(index) {
+                    var $el = $("<div>");
+                    if (index == currentYear) {
+                        $el.addClass("current-item");
+                    }
+                    $el.text(index);
+                    return $el;
+                }
+            });
+
+        $("div.ribbon.month")
+            // Initialize the ribbon
+            .cantorRibbon({
+                // Initial index to center at. Overrides the default value of 0
+                startIndex: currentMonth,
+
+                // Generator function: Takes an index from -infinity..infinity
+                // and returns either a jQuery element to place on the ribbon
+                // or null, which means the sequence ends at this index.
+                generator: function(index) {
+                    var $el = $("<div>");
+                    if (index == currentMonth) {
+                        $el.addClass("current-item");
+                    }
+                    monthIdx = index % 12;
+                    year = Math.floor(index / 12);
+                    $el.text([
+                        "January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November",
+                        "December"][monthIdx] + " " + year);
+                    return $el;
+                }
+            });
+
+        $("div.ribbon.day")
+            // Initialize the ribbon
+            .cantorRibbon({
+                // Initial index to center at. Overrides the default value of 0
+                startIndex: currentDay,
+
+                // Generator function: Takes an index from -infinity..infinity
+                // and returns either a jQuery element to place on the ribbon
+                // or null, which means the sequence ends at this index.
+                generator: function(index) {
+                    if (!isValidDay(index)) {
+                        // Special case: This is not an actual day, (e.g.
+                        // February 30) so return an invisible item
+                        return $("<div>").addClass("invisible-item");
+                    }
+                    var $el = $("<div>");
+                    if (index == currentDay) {
+                        $el.addClass("current-item");
+                    }
+                    dayIdx = (index % 31) + 1;
+                    $el.text(dayIdx);
+                    return $el;
+                }
+            });
+
+        // Now, listen for changes to any of the ribbons so we can update
+        // the rest. For instance, if the user scrolls the month ribbon from
+        // December 2012 to January 2013, we need to update the year ribbon
+        // to 2013 and update the day ribbon to the same day in January 2013.
+
+        $("div.ribbon.year")
+            // Event fired whenever the user navigates to a new element
+            // on the ribbon
+            .on("ribbonNavigated", function(event, index) {
+                // Update the month ribbon
+                var monthIndex = (
+                    $("div.ribbon.month").cantorRibbon("getSelectedIndex"));
+                var newMonthIndex = (monthIndex % 12) + index * 12;
+                $("div.ribbon.month").cantorRibbon("goToIndex", newMonthIndex);
+
+                // Update the day ribbon
+                var dayIndex = (
+                    $("div.ribbon.day").cantorRibbon("getSelectedIndex"));
+                var newDayIndex = (dayIndex % 31) + newMonthIndex * 31;
+                while (!isValidDay(newDayIndex)) {
+                    newDayIndex -= 1;
+                }
+                $("div.ribbon.day").cantorRibbon("goToIndex", newDayIndex);
+            });
+
+        $("div.ribbon.month")
+            // Event fired whenever the user navigates to a new element
+            // on the ribbon
+            .on("ribbonNavigated", function(event, index) {
+                // Update the day ribbon
+                var dayIndex = (
+                    $("div.ribbon.day").cantorRibbon("getSelectedIndex"));
+                var newDayIndex = (dayIndex % 31) + index * 31;
+                while (!isValidDay(newDayIndex)) {
+                    newDayIndex -= 1;
+                }
+                $("div.ribbon.day").cantorRibbon("goToIndex", newDayIndex);
+
+                // Update the year ribbon
+                var newYearIndex = Math.floor(index / 12);
+                $("div.ribbon.year").cantorRibbon("goToIndex", newYearIndex);
+            });
+
+        $("div.ribbon.day")
+            // Event fired whenever the user navigates to a new element
+            // on the ribbon
+            .on("ribbonNavigated", function(event, index) {
+                // Update the month ribbon
+                var newMonthIndex = Math.floor(index / 31);
+                $("div.ribbon.month").cantorRibbon("goToIndex", newMonthIndex);
+
+                // Update the year ribbon
+                var newYearIndex = Math.floor(newMonthIndex / 12);
+                $("div.ribbon.year").cantorRibbon("goToIndex", newYearIndex);
+            });
+    });
+    </script>
+  </head>
+  <body>
+    <h2>Complex Cantor Ribbon example</h2>
+    <p>A Cantor Ribbon is a horizontal ribbon that extends off the screen
+    infinitely in both directions and can be smoothly dragged via click
+    &amp; drag.</p>
+    <p>Here we use three separate but interconnected ribbons as a way to
+    navigate between days on a calendar:</p>
+    <div class="ribbon year"></div>
+    <div class="ribbon month"></div>
+    <div class="ribbon day"></div>
+  </body>
+</html>
+
