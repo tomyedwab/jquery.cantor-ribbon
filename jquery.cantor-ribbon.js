@@ -1,5 +1,5 @@
 /**
- * A horizontal ribbon that extends off the screen infinitely in both
+ * A horizontal or vertical ribbon that extends off the screen infinitely in both
  * directions and can be smoothly dragged via click & drag or just clicking
  * on the desired element.
  * 
