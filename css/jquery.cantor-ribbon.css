@@ -4,7 +4,6 @@
     display: block;
     overflow: hidden;
     position: relative;
-    width: 100%;
 
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -14,7 +13,18 @@
     user-select: none;
 }
 
+.cantor-ribbon.horizontal-ribbon {
+    width: 100%;
+}
+
+.cantor-ribbon.vertical-ribbon {
+    height: 100%;
+}
+
 .cantor-ribbon .ribbon-item {
     border: 1px solid black;
+    left: 0;
     overflow: hidden;
+    position: absolute;
+    top: 0;
 }

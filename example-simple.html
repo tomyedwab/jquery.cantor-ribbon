@@ -14,9 +14,10 @@
             var name = $(this).attr("name");
             if (name) {
                 var label = name
-                    .replace(/_/g, ' ')
-                    .replace(/^a/, 'A')
-                    .replace(/ sec/, ' &sect;');
+                    .replace(/_/g, '&nbsp;')
+                    .replace(/^amdt/, 'Amendment')
+                    .replace(/^a/, 'Article&nbsp;')
+                    .replace(/sec/, '&sect;');
                 sections.push({
                     name: name,
                     label: label
@@ -38,6 +39,10 @@
             })
             // Initialize the ribbon
             .cantorRibbon({
+                // Set this ribbon to be vertical instead of horizontal (the
+                // default)
+                direction: "vertical",
+
                 // Generator function: Takes an index from -infinity..infinity
                 // and returns either a jQuery element to place on the ribbon
                 // or null, which means the sequence ends at this index.
@@ -59,19 +64,21 @@
     &amp; drag.</p>
     <p>Here we use the ribbon as an alternate navigation for sections
     in a long text:</p>
-    <div class="ribbon"></div>
+    <div class="ribbon-container">
+        <div class="ribbon"></div>
+    </div>
 
     <div class="body-text">
         <div class="text-inner">
             <TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0">
+                <tr>
+                    <td colspan="3"><A NAME="introduction"></A></td>
+                </tr>
                 <TR>
                     <TD colspan="3">
                         <h3>Constitution of the United States</h3>
                     </TD>
                 </TR>
-                <tr>
-                    <td colspan="3"><A NAME="introduction"></A></td>
-                </tr>
                 <TR>
                     <TD colspan="3">
                         <span class="contentsubtitle">Introduction</span>
@@ -3574,7 +3581,7 @@
             </TABLE>
         </div>
     </div>
-    <div style="font-size: 12px; padding-bottom:3px; padding-top:3px;">This text and markup taken from <a href="http://www.senate.gov/civics/constitution_item/constitution.htm">www.senate.gov</a>. Originally adapted from S.PUB.103-21 (1994), prepared by the Office of the Secretary of the Senate with the assistance of Johnny H. Killian of the Library of Congress, providing the original text of each clause of the Constitution with an accompanying explanation of its meaning and how that meaning has changed over time.</div>
+    <div class="bibliography">This text and markup taken from <a href="http://www.senate.gov/civics/constitution_item/constitution.htm">www.senate.gov</a>. Originally adapted from S.PUB.103-21 (1994), prepared by the Office of the Secretary of the Senate with the assistance of Johnny H. Killian of the Library of Congress, providing the original text of each clause of the Constitution with an accompanying explanation of its meaning and how that meaning has changed over time.</div>
 
   </body>
 </html>

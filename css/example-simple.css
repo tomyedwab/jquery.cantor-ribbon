@@ -6,13 +6,20 @@
     background-color: #cfc;
 }
 
+.ribbon-container {
+    bottom: 10px;
+    left: 10px;
+    position: absolute;
+    top: 120px;
+}
+
 .body-text {
-    height: 400px;
-    margin-top: 20px;
+    bottom: 100px;
+    left: 180px;
     overflow-y: scroll;
-    padding: 20px;
-    position: relative;
-    width: 80%;
+    position: absolute;
+    right: 20px;
+    top: 120px;
 }
 
 .body-text tr.highlighted {
@@ -21,4 +28,12 @@
 
 .body-text .contentsubtitle {
     font-weight: bold;
+}
+
+.bibliography {
+    bottom: 10px;
+    font-size: 12px;
+    left: 180px;
+    position: absolute;
+    right: 10px;
 }

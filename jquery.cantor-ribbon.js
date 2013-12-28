@@ -15,7 +15,10 @@
 
 (function( $ ) {
 
-    var CantorRibbonView = function($el, generator, startIndex) {
+    var HORIZONTAL = 1;
+    var VERTICAL = 2;
+
+    var CantorRibbonView = function($el, generator, startIndex, dir) {
         // Call the generator to create a subview and add it to the ribbon
         this.generateElement = function(index, adjacentElement) {
             // Generate the element and add it to the container element
@@ -25,30 +28,34 @@
             }
 
             $el.addClass("ribbon-item")
-               .css({
-                   position: "absolute",
-                   left: 0,
-                   top: 0
-               })
                .appendTo(this.$el);
                 
             // Now we can measure the element
-            var elWidth = $el.outerWidth();
-            var elHeight = $el.outerHeight();
+            if (this.dir == HORIZONTAL) {
+                var elExtent = $el.outerWidth();
+                var elDepth = $el.outerHeight();
+            } else {
+                var elExtent = $el.outerHeight();
+                var elDepth = $el.outerWidth();
+            }
 
             // Expand to fit the tallest element, if necessary
-            if (elHeight > this.maxHeight) {
-                this.maxHeight = elHeight;
-                this.$el.css("height", this.maxHeight + "px");
+            if (elDepth > this.maxDepth) {
+                this.maxDepth = elDepth;
+                if (this.dir == HORIZONTAL) {
+                    this.$el.css("height", this.maxDepth + "px");
+                } else {
+                    this.$el.css("width", this.maxDepth + "px");
+                }
             }
 
             // Calculate the new anchor position
-            var anchorPos = -elWidth / 2;
+            var anchorPos = -elExtent / 2;
             if (adjacentElement) {
                 if (adjacentElement.index < index) {
-                    anchorPos = adjacentElement.anchorPos + adjacentElement.width;
+                    anchorPos = adjacentElement.anchorPos + adjacentElement.extent;
                 } else {
-                    anchorPos = adjacentElement.anchorPos - elWidth;
+                    anchorPos = adjacentElement.anchorPos - elExtent;
                 }
             }
 
@@ -56,9 +63,9 @@
             this.subViews[index] = {
                 index: index,
                 view: $el,
-                width: elWidth,
+                extent: elExtent,
                 anchorPos: anchorPos,
-                centerPos: anchorPos + elWidth / 2
+                centerPos: anchorPos + elExtent / 2
             }
 
             // Bind a click handler on the element
@@ -71,7 +78,17 @@
             }, this));
 
             // Position the element
-            $el.css({ left: this.offset + anchorPos });
+            if (this.dir == HORIZONTAL) {
+                $el.css({
+                    left: this.offset + anchorPos,
+                    bottom: 0
+                });
+            } else {
+                $el.css({
+                    top: this.offset + anchorPos,
+                    right: 0
+                });
+            }
 
             // Update minIndex/maxIndex
             if (index < this.minIndex) {
@@ -86,8 +103,6 @@
 
         // Animate the positions of the subview elements
         this.updateViews = function() {
-            var width = this.$el.width();
-
             while (this.offset + this.subViews[this.minIndex].anchorPos >= 0) {
                 // Generate more views to the left
                 if (!this.generateElement(this.minIndex - 1, this.subViews[this.minIndex])) {
@@ -95,7 +110,7 @@
                 }
             }
             while (this.offset + this.subViews[this.maxIndex].anchorPos +
-                    this.subViews[this.maxIndex].width < width) {
+                    this.subViews[this.maxIndex].extent < this.ribbonExtent) {
                 // Generate more views to the right
                 if (!this.generateElement(this.maxIndex + 1, this.subViews[this.maxIndex])) {
                     break;
@@ -103,23 +118,27 @@
             }
 
             $.each(this.subViews, $.proxy(function(idx, element) {
-                if (this.offset + element.anchorPos + element.width < 0) {
+                if (this.offset + element.anchorPos + element.extent < 0) {
                     // Fell off to the left
                     element.view.remove();
                     this.minIndex = Math.max(this.minIndex, idx * 1 + 1);
                     delete this.subViews[idx];
                     return;
                 }
-                if (this.offset + element.anchorPos > width) {
+                if (this.offset + element.anchorPos > this.ribbonExtent) {
                     // Fell off to the right
                     element.view.remove();
                     this.maxIndex = Math.min(this.maxIndex, idx * 1 - 1);
                     delete this.subViews[idx];
                     return;
                 }
-                element.view.css({ left: this.offset + element.anchorPos });
-                var selected = (this.offset + element.anchorPos <= width / 2) &&
-                    (this.offset + element.anchorPos + element.width > width / 2);
+                if (this.dir == HORIZONTAL) {
+                    element.view.css({ left: this.offset + element.anchorPos, });
+                } else {
+                    element.view.css({ top: this.offset + element.anchorPos, });
+                }
+                var selected = (this.offset + element.anchorPos <= this.ribbonExtent / 2) &&
+                    (this.offset + element.anchorPos + element.extent > this.ribbonExtent / 2);
                 if (selected && this.selectedIndex != element.index) {
                     this.$el.trigger("ribbonSelected", element.index);
                 }
@@ -167,7 +186,7 @@
             // Set the drag state to interpolation
             this.dragState = {
                 type: 'interp',
-                target: this.$el.width() / 2 - element.centerPos,
+                target: this.ribbonExtent / 2 - element.centerPos,
                 targetIndex: index
             };
 
@@ -194,21 +213,32 @@
             }, this), 33);
         };
 
+        this.dir = dir;
+
         // The ribbon element
         this.$el = $el;
 
         // Add the classes
         this.$el.addClass("cantor-ribbon");
 
+        if (this.dir == HORIZONTAL) {
+            this.$el.addClass("horizontal-ribbon");
+            this.ribbonExtent = this.$el.width();
+        } else {
+            this.$el.addClass("vertical-ribbon");
+            this.ribbonExtent = this.$el.height();
+        }
+
         // Current scroll offset of the origin point
-        this.offset = this.$el.width() / 2;
+        this.offset = this.ribbonExtent / 2;
 
         // Minimum and maximum indices for generated elements
         this.minIndex = startIndex;
         this.maxIndex = startIndex;
 
-        // Current height (grows to fit the tallest element ever encountered)
-        this.maxHeight = 0;
+        // Current height (horizontal) or width (vertical) (grows to fit the
+        // largest element ever encountered)
+        this.maxDepth = 0;
 
         // Currently selected index
         this.selectedIndex = startIndex;
@@ -263,7 +293,7 @@
         .on("mouseup", $.proxy(function(event) {
             if (this.dragState && this.dragState.type == "mouseDown") {
                 // Calculate the target offset given the position and velocity
-                var finalOffset = this.offset + this.dragState.velocity * 100 - this.$el.width() / 2;
+                var finalOffset = this.offset + this.dragState.velocity * 100 - this.ribbonExtent / 2;
 
                 // Find element whose center is nearest finalOffset
                 // TODO: Handle end clamping better
@@ -303,7 +333,8 @@
             new CantorRibbonView(
                 this,
                 optionsOrCommand.generator,
-                optionsOrCommand.startIndex || 0));
+                optionsOrCommand.startIndex || 0,
+                (optionsOrCommand.direction == "vertical" ? VERTICAL : HORIZONTAL)));
     };
 
 })( jQuery );
