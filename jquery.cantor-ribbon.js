@@ -12,6 +12,7 @@
  */
 
 // TODO: Handle window resize
+// TODO: Handle mouse scroll wheel?
 
 (function( $ ) {
 
