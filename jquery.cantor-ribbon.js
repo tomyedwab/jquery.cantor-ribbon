@@ -258,10 +258,11 @@
 
         // Bind event handlers for click & drag
         this.$el.on("mousedown", $.proxy(function(event) {
+            var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
             this.dragState = {
                 type: 'mouseDown',
-                startX: event.clientX,
-                lastX: event.clientX,
+                startPos: pos,
+                lastPos: pos,
                 lastTime: new Date(),
                 velocity: 0,
                 startOffset: this.offset
@@ -272,16 +273,17 @@
 
         $(document.body).on("mousemove", $.proxy(function(event) {
             if (this.dragState && this.dragState.type == "mouseDown") {
+                var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
                 // Update offset
-                this.offset = (event.clientX - this.dragState.startX +
+                this.offset = (pos - this.dragState.startPos +
                     this.dragState.startOffset);
 
                 // Update velocity
                 var currentTime = new Date();
                 var dt = currentTime - this.dragState.lastTime;
                 this.dragState.velocity = this.dragState.velocity * 0.75 +
-                    (event.clientX - this.dragState.lastX) / dt * 0.25;
-                this.dragState.lastX = event.clientX;
+                    (pos - this.dragState.lastPos) / dt * 0.25;
+                this.dragState.lastPos = pos;
                 this.dragState.lastTime = currentTime;
 
                 // Update subviews
