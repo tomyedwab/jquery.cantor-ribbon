@@ -19,7 +19,7 @@
     var HORIZONTAL = 1;
     var VERTICAL = 2;
 
-    var CantorRibbonView = function($el, generator, startIndex, dir) {
+    var CantorRibbonView = function($el, generator, startIndex, dir, noAutoSize) {
         // Call the generator to create a subview and add it to the ribbon
         this.generateElement = function(index, adjacentElement) {
             // Generate the element and add it to the container element
@@ -41,7 +41,7 @@
             }
 
             // Expand to fit the tallest element, if necessary
-            if (elDepth > this.maxDepth) {
+            if (!this.noAutoSize && elDepth > this.maxDepth) {
                 this.maxDepth = elDepth;
                 if (this.dir == HORIZONTAL) {
                     this.$el.css("height", this.maxDepth + "px");
@@ -118,6 +118,9 @@
                 }
             }
 
+            var closestToCenterIndex = null;
+            var closestToCenterDist = this.ribbonExtent * 2;
+
             $.each(this.subViews, $.proxy(function(idx, element) {
                 if (this.offset + element.anchorPos + element.extent < 0) {
                     // Fell off to the left
@@ -138,13 +141,23 @@
                 } else {
                     element.view.css({ top: this.offset + element.anchorPos, });
                 }
-                var selected = (this.offset + element.anchorPos <= this.ribbonExtent / 2) &&
-                    (this.offset + element.anchorPos + element.extent > this.ribbonExtent / 2);
-                if (selected && this.selectedIndex != element.index) {
-                    this.$el.trigger("ribbonSelected", element.index);
+
+                var dist = Math.max(this.offset + element.anchorPos - this.ribbonExtent / 2, this.ribbonExtent / 2 - (this.offset + element.anchorPos + element.extent));
+                if (dist < closestToCenterDist) {
+                    closestToCenterIndex = idx;
+                    closestToCenterDist = dist;
                 }
-                element.view.toggleClass("selected", selected);
+                element.view.removeClass("selected");
             }, this));
+
+            if (!closestToCenterIndex) {
+                throw "Something went terribly wrong updating the selected ribbon element.";
+            }
+            this.subViews[closestToCenterIndex].view.addClass("selected");
+            if (this.selectedIndex != closestToCenterIndex) {
+                this.$el.trigger("ribbonSelected", closestToCenterIndex);
+                this.selectedIndex = closestToCenterIndex;
+            }
         };
 
         // Navigate to a particular element on the ribbon
@@ -215,6 +228,8 @@
         };
 
         this.dir = dir;
+
+        this.noAutoSize = noAutoSize;
 
         // The ribbon element
         this.$el = $el;
@@ -337,7 +352,8 @@
                 this,
                 optionsOrCommand.generator,
                 optionsOrCommand.startIndex || 0,
-                (optionsOrCommand.direction == "vertical" ? VERTICAL : HORIZONTAL)));
+                (optionsOrCommand.direction == "vertical" ? VERTICAL : HORIZONTAL),
+                optionsOrCommand.noAutoSize || false));
     };
 
 })( jQuery );
