@@ -284,6 +284,36 @@
             };
             event.stopImmediatePropagation();
             event.preventDefault();
+        }, this))
+        //Firefox
+        .on('DOMMouseScroll', $.proxy(function(event) {
+            if (event.originalEvent.detail > 0) {
+                // scroll down
+                console.log('Down');
+                this.goToIndex(this.selectedIndex + 1);
+            } else {
+                // scroll up
+                console.log('Up');
+                this.goToIndex(this.selectedIndex - 1);
+            }
+
+            // prevent page fom scrolling
+            return false;
+        }, this))
+        //IE, Opera, Safari
+        .on('mousewheel', $.proxy(function(event){
+            if (event.originalEvent.wheelDelta < 0) {
+                // scroll down
+                console.log('Down');
+                this.goToIndex(this.selectedIndex + 1);
+            } else {
+                // scroll up
+                console.log('Up');
+                this.goToIndex(this.selectedIndex - 1);
+            }
+
+            //prevent page fom scrolling
+            return false;
         }, this));
 
         $(document.body).on("mousemove", $.proxy(function(event) {
