@@ -227,6 +227,57 @@
             }, this), 33);
         };
 
+        // Handle a mouse drag or touch event beginning
+        this.handleDragStart = function(pos) {
+            this.dragState = {
+                type: 'mouseDown',
+                startPos: pos,
+                lastPos: pos,
+                lastTime: new Date(),
+                velocity: 0,
+                startOffset: this.offset
+            };
+        };
+
+        // Handle a mouse drag or touch event in progress
+        this.handleDragMove = function(pos) {
+            // Update offset
+            this.offset = (pos - this.dragState.startPos +
+                this.dragState.startOffset);
+
+            // Update velocity
+            var currentTime = new Date();
+            var dt = currentTime - this.dragState.lastTime;
+            this.dragState.velocity = this.dragState.velocity * 0.75 +
+                (pos - this.dragState.lastPos) / dt * 0.25;
+            this.dragState.lastPos = pos;
+            this.dragState.lastTime = currentTime;
+
+            // Update subviews
+            this.updateViews();
+        };
+
+        // Handle a moues drag or touch event completing
+        this.handleDragStop = function() {
+            // Calculate the target offset given the position and velocity
+            var finalOffset = this.offset + this.dragState.velocity * 100 - this.ribbonExtent / 2;
+
+            // Find element whose center is nearest finalOffset
+            // TODO: Handle end clamping better
+            var bestElementIndex = this.selectedIndex;
+            var bestElementDist = Math.abs(finalOffset + this.subViews[this.selectedIndex].centerPos);
+            $.each(this.subViews, $.proxy(function(idx, element) {
+                var dist = Math.abs(finalOffset + element.centerPos);
+                if (dist < bestElementDist) {
+                    bestElementIndex = element.index;
+                    bestElementDist = dist;
+                }
+            }, this));
+
+            this.dragState = null;
+            this.goToIndex(bestElementIndex);
+        };
+
         this.dir = dir;
 
         this.noAutoSize = noAutoSize;
@@ -278,19 +329,19 @@
                 return;
             }
             var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
-            this.dragState = {
-                type: 'mouseDown',
-                startPos: pos,
-                lastPos: pos,
-                lastTime: new Date(),
-                velocity: 0,
-                startOffset: this.offset
-            };
+            this.handleDragStart(pos);
+            event.stopImmediatePropagation();
+            event.preventDefault();
+        }, this))
+        .on("touchstart", $.proxy(function(event) {
+            var touch = event.originalEvent.touches[0];
+            var pos = (this.dir == HORIZONTAL) ? touch.pageX : touch.pageY;
+            this.handleDragStart(pos);
             event.stopImmediatePropagation();
             event.preventDefault();
         }, this))
         //Firefox
-        .on('DOMMouseScroll', $.proxy(function(event) {
+        .on("DOMMouseScroll", $.proxy(function(event) {
             if (event.originalEvent.detail > 0) {
                 // scroll down
                 this.goToIndex(this.selectedIndex + 1);
@@ -319,45 +370,29 @@
         $(document.body).on("mousemove", $.proxy(function(event) {
             if (this.dragState && this.dragState.type == "mouseDown") {
                 var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
-                // Update offset
-                this.offset = (pos - this.dragState.startPos +
-                    this.dragState.startOffset);
-
-                // Update velocity
-                var currentTime = new Date();
-                var dt = currentTime - this.dragState.lastTime;
-                this.dragState.velocity = this.dragState.velocity * 0.75 +
-                    (pos - this.dragState.lastPos) / dt * 0.25;
-                this.dragState.lastPos = pos;
-                this.dragState.lastTime = currentTime;
-
-                // Update subviews
-                this.updateViews();
-
+                this.handleDragMove(pos);
+                event.stopImmediatePropagation();
+                event.preventDefault();
+            }
+        }, this))
+        .on("touchmove", $.proxy(function(event) {
+            if (this.dragState && this.dragState.type == "mouseDown") {
+                var touch = event.originalEvent.touches[0];
+                var pos = (this.dir == HORIZONTAL) ? touch.pageX : touch.pageY;
+                this.handleDragMove(pos);
                 event.stopImmediatePropagation();
                 event.preventDefault();
             }
         }, this))
         .on("mouseup", $.proxy(function(event) {
             if (this.dragState && this.dragState.type == "mouseDown") {
-                // Calculate the target offset given the position and velocity
-                var finalOffset = this.offset + this.dragState.velocity * 100 - this.ribbonExtent / 2;
-
-                // Find element whose center is nearest finalOffset
-                // TODO: Handle end clamping better
-                var bestElementIndex = this.selectedIndex;
-                var bestElementDist = Math.abs(finalOffset + this.subViews[this.selectedIndex].centerPos);
-                $.each(this.subViews, $.proxy(function(idx, element) {
-                    var dist = Math.abs(finalOffset + element.centerPos);
-                    if (dist < bestElementDist) {
-                        bestElementIndex = element.index;
-                        bestElementDist = dist;
-                    }
-                }, this));
-
-                this.dragState = null;
-                this.goToIndex(bestElementIndex);
-
+                this.handleDragStop();
+                event.stopImmediatePropagation();
+            }
+        }, this))
+        .on("touchend", $.proxy(function(event) {
+            if (this.dragState && this.dragState.type == "mouseDown") {
+                this.handleDragStop();
                 event.stopImmediatePropagation();
             }
         }, this));
