@@ -144,7 +144,7 @@
 
                 var dist = Math.max(this.offset + element.anchorPos - this.ribbonExtent / 2, this.ribbonExtent / 2 - (this.offset + element.anchorPos + element.extent));
                 if (dist < closestToCenterDist) {
-                    closestToCenterIndex = idx;
+                    closestToCenterIndex = element.index;
                     closestToCenterDist = dist;
                 }
                 element.view.removeClass("selected");
@@ -273,6 +273,10 @@
 
         // Bind event handlers for click & drag
         this.$el.on("mousedown", $.proxy(function(event) {
+            if (event.which != 1) {
+                // Only care about left-clicks
+                return;
+            }
             var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
             this.dragState = {
                 type: 'mouseDown',
@@ -289,11 +293,9 @@
         .on('DOMMouseScroll', $.proxy(function(event) {
             if (event.originalEvent.detail > 0) {
                 // scroll down
-                console.log('Down');
                 this.goToIndex(this.selectedIndex + 1);
             } else {
                 // scroll up
-                console.log('Up');
                 this.goToIndex(this.selectedIndex - 1);
             }
 
@@ -304,11 +306,9 @@
         .on('mousewheel', $.proxy(function(event){
             if (event.originalEvent.wheelDelta < 0) {
                 // scroll down
-                console.log('Down');
                 this.goToIndex(this.selectedIndex + 1);
             } else {
                 // scroll up
-                console.log('Up');
                 this.goToIndex(this.selectedIndex - 1);
             }
 
