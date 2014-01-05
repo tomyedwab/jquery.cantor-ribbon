@@ -19,11 +19,11 @@
     var HORIZONTAL = 1;
     var VERTICAL = 2;
 
-    var CantorRibbonView = function($el, generator, startIndex, dir, noAutoSize) {
+    var CantorRibbonView = function($el, options) {
         // Call the generator to create a subview and add it to the ribbon
         this.generateElement = function(index, adjacentElement) {
             // Generate the element and add it to the container element
-            var $el = generator(index);
+            var $el = this.generator(index);
             if (!$el) {
                 return false;
             }
@@ -70,13 +70,14 @@
             }
 
             // Bind a click handler on the element
-            // TODO: This gets annoying sometimes
-            $el.on("click", $.proxy(function(event) {
-                if (this.dragState && this.dragState.type == "interp") {
-                    this.dragState = null;
-                }
-                this.goToIndex(index);
-            }, this));
+            if (!this.noClickHandler) {
+                $el.on("click", $.proxy(function(event) {
+                    if (this.dragState && this.dragState.type == "interp") {
+                        this.dragState = null;
+                    }
+                    this.goToIndex(index);
+                }, this));
+            }
 
             // Position the element
             if (this.dir == HORIZONTAL) {
@@ -275,6 +276,11 @@
 
         // Handle a moues drag or touch event completing
         this.handleDragStop = function() {
+            if (this.dragState.lastPos == this.dragState.startPos) {
+                this.dragState = null;
+                return;
+            }
+
             // Calculate the target offset given the position and velocity
             var finalOffset = this.offset + this.dragState.velocity * 100 - this.ribbonExtent / 2;
 
@@ -307,7 +313,7 @@
             this.maxDepth = 0;
 
             // Currently selected index
-            this.selectedIndex = startIndex;
+            this.selectedIndex = index;
 
             // Cache of all our subviews by index
             this.subViews = {};
@@ -319,9 +325,10 @@
             this.updateViews();
         };
 
-        this.dir = dir;
-
-        this.noAutoSize = noAutoSize;
+        this.generator = options.generator;
+        this.dir = (options.direction == "vertical") ? VERTICAL : HORIZONTAL;
+        this.noAutoSize = options.noAutoSize || false;
+        this.noClickHandler = options.noClickHandler || false;
 
         // The ribbon element
         this.$el = $el;
@@ -341,7 +348,7 @@
         this.dragState = null;
 
         // Initialize to the requested index
-        this.resetToIndex(startIndex);
+        this.resetToIndex(options.startIndex || 0);
 
         // Bind event handlers for click & drag
         this.$el.on("mousedown", $.proxy(function(event) {
@@ -415,7 +422,7 @@
         }, this));
 
         // We're all set! Fire an initial event for the initial navigation
-        this.$el.trigger("ribbonNavigated", startIndex);
+        this.$el.trigger("ribbonNavigated", options.startIndex || 0);
     };
 
     $.fn.cantorRibbon = function(optionsOrCommand, commandOptions) {
@@ -430,12 +437,7 @@
             return this;
         }
         return this.data('cantorRibbonView',
-            new CantorRibbonView(
-                this,
-                optionsOrCommand.generator,
-                optionsOrCommand.startIndex || 0,
-                (optionsOrCommand.direction == "vertical" ? VERTICAL : HORIZONTAL),
-                optionsOrCommand.noAutoSize || false));
+            new CantorRibbonView(this, optionsOrCommand));
     };
 
 })( jQuery );
