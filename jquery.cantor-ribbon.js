@@ -12,7 +12,6 @@
  */
 
 // TODO: Handle window resize
-// TODO: Handle mouse scroll wheel?
 
 (function( $ ) {
 
@@ -170,6 +169,22 @@
                 return;
             }
 
+            // Optimization: If we are way too far outside the visible area,
+            // delete all the currently visible items and reset with the
+            // currently selected index
+            // A rough heuristic: If we're scrolling more than twice the number
+            // of currently visible items, just jump
+            var jumpTolerance = (this.maxIndex - this.minIndex) * 2;
+            if (index < this.minIndex - jumpTolerance ||
+                index > this.maxIndex + jumpTolerance) {
+                // Remove all existing items
+                $.each(this.subViews, function(idx, element) {
+                    element.view.remove();
+                });
+
+                this.resetToIndex(index);
+            }
+
             // Make sure the requested index is actually generated
             while (index < this.minIndex) {
                 // Generate more views to the left
@@ -278,6 +293,31 @@
             this.goToIndex(bestElementIndex);
         };
 
+        this.resetToIndex = function(index) {
+            // Current scroll offset of the origin point
+            this.offset = this.ribbonExtent / 2;
+
+            // Minimum and maximum indices for generated elements
+            this.minIndex = index;
+            this.maxIndex = index;
+
+            // Current height (horizontal) or width (vertical) (grows to fit the
+            // largest element ever encountered)
+            this.maxDepth = 0;
+
+            // Currently selected index
+            this.selectedIndex = startIndex;
+
+            // Cache of all our subviews by index
+            this.subViews = {};
+        
+            // Create the first element and add it to the ribbon
+            this.generateElement(index);
+
+            // Populate the remaining views that are initially visible
+            this.updateViews();
+        };
+
         this.dir = dir;
 
         this.noAutoSize = noAutoSize;
@@ -296,31 +336,11 @@
             this.ribbonExtent = this.$el.height();
         }
 
-        // Current scroll offset of the origin point
-        this.offset = this.ribbonExtent / 2;
-
-        // Minimum and maximum indices for generated elements
-        this.minIndex = startIndex;
-        this.maxIndex = startIndex;
-
-        // Current height (horizontal) or width (vertical) (grows to fit the
-        // largest element ever encountered)
-        this.maxDepth = 0;
-
-        // Currently selected index
-        this.selectedIndex = startIndex;
-
-        // Cache of all our subviews by index
-        this.subViews = {}
-
         // Drag state
         this.dragState = null;
-        
-        // Create the first element and add it to the ribbon
-        this.generateElement(startIndex);
 
-        // Populate the remaining views that are initially visible
-        this.updateViews();
+        // Initialize to the requested index
+        this.resetToIndex(startIndex);
 
         // Bind event handlers for click & drag
         this.$el.on("mousedown", $.proxy(function(event) {
