@@ -12,6 +12,7 @@
  */
 
 // TODO: Handle window resize
+// TODO: Handle subview resize
 
 (function( $ ) {
 
@@ -350,15 +351,11 @@
             }
             var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
             this.handleDragStart(pos);
-            event.stopImmediatePropagation();
-            event.preventDefault();
         }, this))
         .on("touchstart", $.proxy(function(event) {
             var touch = event.originalEvent.touches[0];
             var pos = (this.dir == HORIZONTAL) ? touch.pageX : touch.pageY;
             this.handleDragStart(pos);
-            event.stopImmediatePropagation();
-            event.preventDefault();
         }, this))
         //Firefox
         .on("DOMMouseScroll", $.proxy(function(event) {
