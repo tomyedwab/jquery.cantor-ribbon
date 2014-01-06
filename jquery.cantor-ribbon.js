@@ -161,6 +161,45 @@
             }
         };
 
+        // Navigate to a particular offset on the ribbon
+        this.goToOffset = function(offset) {
+            // Set the drag state to interpolation
+            this.dragState = {
+                type: 'interp',
+                target: offset
+            };
+
+            if (this.timer) {
+                window.clearInterval(this.timer);
+            }
+            this.timer = window.setInterval($.proxy(function() {
+                // If some other drag event happened, abort this timer
+                if (!this.dragState || this.dragState.type != "interp") {
+                    window.clearInterval(this.timer);
+                    this.timer = null;
+                    return;
+                };
+
+                // Animate the offset
+                this.offset = this.offset * 0.5 + this.dragState.target * 0.5;
+
+                // Update subviews
+                this.updateViews();
+
+                // Are we done?
+                if (Math.abs(this.offset - this.dragState.target) < 3) {
+                    // We're done; clear the timer and the drag state
+                    this.offset = this.dragState.target;
+                    window.clearInterval(this.timer);
+                    this.timer = null;
+                    this.dragState = null;
+
+                    // Trigger an event that we've navigated
+                    this.$el.trigger("ribbonNavigated", this.selectedIndex);
+                }
+            }, this), 33);
+        },
+
         // Navigate to a particular element on the ribbon
         this.goToIndex = function(index) {
             // Can't navigate while the user is dragging something
@@ -206,42 +245,9 @@
                 return;
             }
 
-            // Update the selected index state
-            this.selectedIndex = index;
-
-            // Trigger an event that we've navigated
-            this.$el.trigger("ribbonNavigated", index);
-
             var element = this.subViews[index];
 
-            // Set the drag state to interpolation
-            this.dragState = {
-                type: 'interp',
-                target: this.ribbonExtent / 2 - element.centerPos,
-                targetIndex: index
-            };
-
-            var timer;
-            timer = window.setInterval($.proxy(function() {
-                // If some other drag event happened, abort this timer
-                if (!this.dragState || this.dragState.type != "interp") {
-                    window.clearInterval(timer);
-                    return;
-                };
-
-                // Animate the offset
-                this.offset = this.offset * 0.5 + this.dragState.target * 0.5;
-                if (Math.abs(this.offset - this.dragState.target) < 3) {
-                    // We're done; clear the timer and the drag state
-                    var targetIndex = this.dragState.targetIndex;
-                    this.offset = this.dragState.target;
-                    window.clearInterval(timer);
-                    this.dragState = null;
-                }
-
-                // Update subviews
-                this.updateViews();
-            }, this), 33);
+            this.goToOffset(this.ribbonExtent / 2 - element.centerPos);
         };
 
         // Handle a mouse drag or touch event beginning
@@ -333,6 +339,9 @@
         // The ribbon element
         this.$el = $el;
 
+        // A timer for animation
+        this.timer = null;
+
         // Add the classes
         this.$el.addClass("cantor-ribbon");
 
@@ -343,6 +352,9 @@
             this.$el.addClass("vertical-ribbon");
             this.ribbonExtent = this.$el.height();
         }
+
+        // The speed of the scroll (default: 15% of total extent)
+        this.scrollSpeed = this.ribbonExtent * (options.scrollSpeed || 0.15);
 
         // Drag state
         this.dragState = null;
@@ -368,10 +380,10 @@
         .on("DOMMouseScroll", $.proxy(function(event) {
             if (event.originalEvent.detail > 0) {
                 // scroll down
-                this.goToIndex(this.selectedIndex + 1);
+                this.goToOffset(this.offset - this.scrollSpeed);
             } else {
                 // scroll up
-                this.goToIndex(this.selectedIndex - 1);
+                this.goToOffset(this.offset + this.scrollSpeed);
             }
 
             // prevent page fom scrolling
@@ -381,10 +393,10 @@
         .on('mousewheel', $.proxy(function(event){
             if (event.originalEvent.wheelDelta < 0) {
                 // scroll down
-                this.goToIndex(this.selectedIndex + 1);
+                this.goToOffset(this.offset - this.scrollSpeed);
             } else {
                 // scroll up
-                this.goToIndex(this.selectedIndex - 1);
+                this.goToOffset(this.offset + this.scrollSpeed);
             }
 
             //prevent page fom scrolling
