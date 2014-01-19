@@ -151,7 +151,7 @@
                 element.view.removeClass("selected");
             }, this));
 
-            if (!closestToCenterIndex) {
+            if (closestToCenterIndex === null) {
                 throw "Something went terribly wrong updating the selected ribbon element.";
             }
             this.subViews[closestToCenterIndex].view.addClass("selected");
