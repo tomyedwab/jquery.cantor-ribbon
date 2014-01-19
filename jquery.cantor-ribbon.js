@@ -11,8 +11,6 @@
  * of the ribbon.
  */
 
-// TODO: Handle window resize
-
 (function( $ ) {
 
     var HORIZONTAL = 1;
@@ -247,6 +245,14 @@
             };
         };
 
+        this.measureRibbon = function() {
+        if (this.dir == HORIZONTAL) {
+            this.ribbonExtent = this.$el.width();
+        } else {
+            this.ribbonExtent = this.$el.height();
+        }
+        };
+
         // Handle a mouse drag or touch event in progress
         this.handleDragMove = function(pos) {
             // Update offset
@@ -339,11 +345,12 @@
 
         if (this.dir == HORIZONTAL) {
             this.$el.addClass("horizontal-ribbon");
-            this.ribbonExtent = this.$el.width();
         } else {
             this.$el.addClass("vertical-ribbon");
-            this.ribbonExtent = this.$el.height();
         }
+
+        // Measure the ribbon
+        this.measureRibbon();
 
         // The speed of the scroll (default: 15% of total extent)
         this.scrollSpeed = this.ribbonExtent * (options.scrollSpeed || 0.15);
@@ -423,6 +430,15 @@
                 this.handleDragStop();
                 event.stopImmediatePropagation();
             }
+        }, this));
+
+        // Handle window resize
+        $(window).on("resize", $.proxy(function(event) {
+            var oldExtent = this.ribbonExtent;
+            this.measureRibbon();
+            // Re-center offset
+            this.offset += (this.ribbonExtent - oldExtent) / 2;
+            this.updateViews(false);
         }, this));
 
         // We're all set! Fire an initial event for the initial navigation
