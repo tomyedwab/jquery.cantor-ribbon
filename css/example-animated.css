@@ -1,0 +1,20 @@
+.ribbon .ribbon-item {
+    text-align: center;
+//    width: 20px;
+    height: 20px;
+}
+
+.ribbon .ribbon-item.selected {
+    background-color: #808;
+    color: #fff;
+}
+
+.ribbon .ribbon-item.medium {
+    width: 30px;
+    height: 30px;
+}
+
+.ribbon .ribbon-item.large {
+    width: 40px;
+    height: 40px;
+}

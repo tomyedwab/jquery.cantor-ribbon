@@ -12,7 +12,6 @@
  */
 
 // TODO: Handle window resize
-// TODO: Handle subview resize
 
 (function( $ ) {
 
@@ -21,7 +20,7 @@
 
     var CantorRibbonView = function($el, options) {
         // Call the generator to create a subview and add it to the ribbon
-        this.generateElement = function(index, adjacentElement) {
+        this.generateElement = function(index) {
             // Generate the element and add it to the container element
             var $el = this.generator(index);
             if (!$el) {
@@ -29,44 +28,15 @@
             }
 
             $el.addClass("ribbon-item")
-               .appendTo(this.$el);
-                
-            // Now we can measure the element
-            if (this.dir == HORIZONTAL) {
-                var elExtent = $el.outerWidth();
-                var elDepth = $el.outerHeight();
-            } else {
-                var elExtent = $el.outerHeight();
-                var elDepth = $el.outerWidth();
-            }
-
-            // Expand to fit the tallest element, if necessary
-            if (!this.noAutoSize && elDepth > this.maxDepth) {
-                this.maxDepth = elDepth;
-                if (this.dir == HORIZONTAL) {
-                    this.$el.css("height", this.maxDepth + "px");
-                } else {
-                    this.$el.css("width", this.maxDepth + "px");
-                }
-            }
-
-            // Calculate the new anchor position
-            var anchorPos = -elExtent / 2;
-            if (adjacentElement) {
-                if (adjacentElement.index < index) {
-                    anchorPos = adjacentElement.anchorPos + adjacentElement.extent;
-                } else {
-                    anchorPos = adjacentElement.anchorPos - elExtent;
-                }
-            }
+               .appendTo(this.$el)
+               .on("DOMSubtreeModified DOMAttrModified", $.proxy(function() {
+                   this.updateViews(false);
+               }, this));
 
             // Add to the subviews table
             this.subViews[index] = {
                 index: index,
-                view: $el,
-                extent: elExtent,
-                anchorPos: anchorPos,
-                centerPos: anchorPos + elExtent / 2
+                $el: $el
             }
 
             // Bind a click handler on the element
@@ -77,19 +47,6 @@
                     }
                     this.goToIndex(index);
                 }, this));
-            }
-
-            // Position the element
-            if (this.dir == HORIZONTAL) {
-                $el.css({
-                    left: this.offset + anchorPos,
-                    bottom: 0
-                });
-            } else {
-                $el.css({
-                    top: this.offset + anchorPos,
-                    right: 0
-                });
             }
 
             // Update minIndex/maxIndex
@@ -103,62 +60,120 @@
             return true;
         };
 
-        // Animate the positions of the subview elements
-        this.updateViews = function() {
-            while (this.offset + this.subViews[this.minIndex].anchorPos >= 0) {
-                // Generate more views to the left
-                if (!this.generateElement(this.minIndex - 1, this.subViews[this.minIndex])) {
-                    break;
+        // Measure the element
+        this.measureView = function(view) {
+            var depth;
+            if (this.dir == HORIZONTAL) {
+                view.extent = view.$el.outerWidth();
+                depth = view.$el.outerHeight();
+            } else {
+                view.extent = view.$el.outerHeight();
+                depth = view.$el.outerWidth();
+            }
+
+            // Expand to fit the tallest element, if necessary
+            if (!this.noAutoSize && depth > this.maxDepth) {
+                this.maxDepth = depth;
+                if (this.dir == HORIZONTAL) {
+                    this.$el.css("height", this.maxDepth + "px");
+                } else {
+                    this.$el.css("width", this.maxDepth + "px");
                 }
             }
-            while (this.offset + this.subViews[this.maxIndex].anchorPos +
-                    this.subViews[this.maxIndex].extent < this.ribbonExtent) {
-                // Generate more views to the right
-                if (!this.generateElement(this.maxIndex + 1, this.subViews[this.maxIndex])) {
+        };
+
+        // Animate the positions of the subview elements
+        this.updateViews = function(updateSelection) {
+            // "offset" position is always the center of the selected index
+            this.measureView(this.subViews[this.selectedIndex]);
+            if (this.subViews[this.selectedIndex].anchorPos == undefined) {
+                this.subViews[this.selectedIndex].anchorPos = -this.subViews[this.selectedIndex].extent / 2;
+            }
+
+            // Generate views to left/below selected view
+            var nextPos = this.subViews[this.selectedIndex].anchorPos +
+                this.subViews[this.selectedIndex].extent;
+            for (var idx = this.selectedIndex + 1; ; idx++) {
+                if (this.offset + nextPos > this.ribbonExtent) {
+                    // We're off-screen; delete everything past this index
+                    for (var delIdx = idx; delIdx <= this.maxIndex; delIdx++) {
+                        this.subViews[delIdx].$el.remove();
+                        delete this.subViews[delIdx];
+                    }
+                    this.maxIndex = idx - 1;
                     break;
                 }
+                if (idx > this.maxIndex) {
+                    // We haven't generated a view this far out yet, generate
+                    // it now
+                    if (!this.generateElement(idx)) {
+                        break;
+                    }
+                }
+                this.measureView(this.subViews[idx]);
+                this.subViews[idx].anchorPos = nextPos;
+                nextPos += this.subViews[idx].extent;
+            }
+
+            // Generate views to the right/above selected view
+            var nextPos = this.subViews[this.selectedIndex].anchorPos;
+            for (var idx = this.selectedIndex - 1; ; idx--) {
+                if (this.offset + nextPos < 0) {
+                    // We're off-screen; delete everything past this index
+                    for (var delIdx = idx; delIdx >= this.minIndex; delIdx--) {
+                        this.subViews[delIdx].$el.remove();
+                        delete this.subViews[delIdx];
+                    }
+                    this.minIndex = idx + 1;
+                    break;
+                }
+                if (idx < this.minIndex) {
+                    // We haven't generated a view this far out yet, generate
+                    // it now
+                    if (!this.generateElement(idx)) {
+                        break;
+                    }
+                }
+                this.measureView(this.subViews[idx]);
+                this.subViews[idx].anchorPos = nextPos - this.subViews[idx].extent;
+                nextPos -= this.subViews[idx].extent;
             }
 
             var closestToCenterIndex = null;
             var closestToCenterDist = this.ribbonExtent * 2;
 
+            // Place the elements in their positions and calculate the
+            // closest-to-center element
             $.each(this.subViews, $.proxy(function(idx, element) {
-                if (this.offset + element.anchorPos + element.extent < 0) {
-                    // Fell off to the left
-                    element.view.remove();
-                    this.minIndex = Math.max(this.minIndex, idx * 1 + 1);
-                    delete this.subViews[idx];
-                    return;
-                }
-                if (this.offset + element.anchorPos > this.ribbonExtent) {
-                    // Fell off to the right
-                    element.view.remove();
-                    this.maxIndex = Math.min(this.maxIndex, idx * 1 - 1);
-                    delete this.subViews[idx];
-                    return;
-                }
+                // Calculate center position
+                element.centerPos = element.anchorPos + element.extent / 2;
+
+                // Update positioning
                 if (this.dir == HORIZONTAL) {
-                    element.view.css({ left: this.offset + element.anchorPos, });
+                    element.$el.css({ left: this.offset + element.anchorPos, });
                 } else {
-                    element.view.css({ top: this.offset + element.anchorPos, });
+                    element.$el.css({ top: this.offset + element.anchorPos, });
                 }
 
+                // Check distance from center of ribbon
                 var dist = Math.max(this.offset + element.anchorPos - this.ribbonExtent / 2, this.ribbonExtent / 2 - (this.offset + element.anchorPos + element.extent));
                 if (dist < closestToCenterDist) {
                     closestToCenterIndex = element.index;
                     closestToCenterDist = dist;
                 }
-                element.view.removeClass("selected");
+                element.$el.removeClass("selected");
             }, this));
 
             if (closestToCenterIndex === null) {
                 throw "Something went terribly wrong updating the selected ribbon element.";
             }
-            this.subViews[closestToCenterIndex].view.addClass("selected");
-            if (this.selectedIndex != closestToCenterIndex) {
+            if (updateSelection && this.selectedIndex != closestToCenterIndex) {
                 this.$el.trigger("ribbonSelected", closestToCenterIndex);
+
+                // Update selected index
                 this.selectedIndex = closestToCenterIndex;
             }
+            this.subViews[this.selectedIndex].$el.addClass("selected");
         };
 
         // Navigate to a particular offset on the ribbon
@@ -184,7 +199,7 @@
                 this.offset = this.offset * 0.5 + this.dragState.target * 0.5;
 
                 // Update subviews
-                this.updateViews();
+                this.updateViews(true);
 
                 // Are we done?
                 if (Math.abs(this.offset - this.dragState.target) < 3) {
@@ -210,43 +225,13 @@
                 return;
             }
 
-            // Optimization: If we are way too far outside the visible area,
-            // delete all the currently visible items and reset with the
-            // currently selected index
-            // A rough heuristic: If we're scrolling more than twice the number
-            // of currently visible items, just jump
-            var jumpTolerance = (this.maxIndex - this.minIndex) * 2;
-            if (index < this.minIndex - jumpTolerance ||
-                index > this.maxIndex + jumpTolerance) {
-                // Remove all existing items
-                $.each(this.subViews, function(idx, element) {
-                    element.view.remove();
-                });
-
+            // If the requested element is not in the visible area, jump to it
+            // directly.
+            if (!this.subViews[index]) {
                 this.resetToIndex(index);
             }
 
-            // Make sure the requested index is actually generated
-            while (index < this.minIndex) {
-                // Generate more views to the left
-                if (!this.generateElement(this.minIndex - 1, this.subViews[this.minIndex])) {
-                    break;
-                }
-            }
-            while (index > this.maxIndex) {
-                // Generate more views to the right
-                if (!this.generateElement(this.maxIndex + 1, this.subViews[this.maxIndex])) {
-                    break;
-                }
-            }
-
-            if (!this.subViews[index]) {
-                // We couldn't generate the requested index. Error?
-                return;
-            }
-
             var element = this.subViews[index];
-
             this.goToOffset(this.ribbonExtent / 2 - element.centerPos);
         };
 
@@ -277,7 +262,7 @@
             this.dragState.lastTime = currentTime;
 
             // Update subviews
-            this.updateViews();
+            this.updateViews(true);
         };
 
         // Handle a moues drag or touch event completing
@@ -321,6 +306,13 @@
             // Currently selected index
             this.selectedIndex = index;
 
+            // Delete any existing views
+            if (this.subViews) {
+                $.each(this.subViews, $.proxy(function(idx, element) {
+                    element.$el.remove();
+                }));
+            }
+
             // Cache of all our subviews by index
             this.subViews = {};
         
@@ -328,7 +320,7 @@
             this.generateElement(index);
 
             // Populate the remaining views that are initially visible
-            this.updateViews();
+            this.updateViews(true);
         };
 
         this.generator = options.generator;
@@ -440,6 +432,9 @@
     $.fn.cantorRibbon = function(optionsOrCommand, commandOptions) {
         // Don't bind multiple times
         if (this.data('cantorRibbonView')) {
+            if (optionsOrCommand == "refresh") {
+                this.data('cantorRibbonView').updateViews(false);
+            }
             if (optionsOrCommand == "getSelectedIndex") {
                 return this.data('cantorRibbonView').selectedIndex;
             }

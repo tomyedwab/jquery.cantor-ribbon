@@ -1,0 +1,57 @@
+<html>
+  <head>
+    <title>Animated Cantor Ribbon example</title>
+    <link rel="stylesheet" type="text/css" href="css/jquery.cantor-ribbon.css" />
+    <link rel="stylesheet" type="text/css" href="css/example-animated.css" />
+    <script src="http://code.jquery.com/jquery-2.0.3.min.js"></script>
+    <script src="jquery.cantor-ribbon.js"></script>
+
+    <script language="javascript">
+    $(function() {
+        $("div.ribbon")
+            // Initialize the ribbon
+            .cantorRibbon({
+                // Generator function: Takes an index from -infinity..infinity
+                // and returns either a jQuery element to place on the ribbon
+                // or null, which means the sequence ends at this index.
+                generator: function(index) {
+                var idx = ((index % 10) + 10) % 10;
+                    return $("<div>")
+                        .html(idx)
+                        .data("itemIdx", idx);
+                }
+            });
+
+        var curIdx = 0;
+
+        setInterval(function() {
+            curIdx = (curIdx + 1) % 10;
+            $("div.ribbon .ribbon-item").each(function() {
+                var idx = $(this).data("itemIdx");
+                if (idx == curIdx) {
+                    $(this).addClass("large");
+                } else if (idx == ((curIdx + 1) % 10) || idx == ((curIdx + 9) % 10)) {
+                    $(this).addClass("medium");
+                    $(this).removeClass("large");
+                } else {
+                    $(this).removeClass("medium");
+                    $(this).removeClass("large");
+                }
+            });
+            $("div.ribbon").cantorRibbon("refresh");
+        }, 200);
+    });
+    </script>
+  </head>
+  <body>
+    <h2>Animated Cantor Ribbon example</h2>
+    <p>A Cantor Ribbon is a horizontal or vertical ribbon that extends off the screen
+    infinitely in both directions and can be smoothly dragged via click
+    &amp; drag.</p>
+    <p>Here we use a ribbon with animated elements to show how resizing child
+    elements works:</p>
+    <div class="ribbon-container">
+        <div class="ribbon"></div>
+    </div>
+  </body>
+</html>
