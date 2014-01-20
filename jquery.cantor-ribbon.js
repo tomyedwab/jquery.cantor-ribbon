@@ -82,21 +82,29 @@
 
         // Animate the positions of the subview elements
         this.updateViews = function(updateSelection) {
+            if (this.updating) {
+                return;
+            }
+            this.updating = true;
+
             // "offset" position is always the center of the selected index
             this.measureView(this.subViews[this.selectedIndex]);
             if (this.subViews[this.selectedIndex].anchorPos == undefined) {
                 this.subViews[this.selectedIndex].anchorPos = -this.subViews[this.selectedIndex].extent / 2;
             }
 
-            // Generate views to left/below selected view
+            // Generate views to right/below selected view
             var nextPos = this.subViews[this.selectedIndex].anchorPos +
                 this.subViews[this.selectedIndex].extent;
             for (var idx = this.selectedIndex + 1; ; idx++) {
                 if (this.offset + nextPos > this.ribbonExtent) {
                     // We're off-screen; delete everything past this index
                     for (var delIdx = idx; delIdx <= this.maxIndex; delIdx++) {
-                        this.subViews[delIdx].$el.remove();
-                        delete this.subViews[delIdx];
+                        if (this.subViews[delIdx]) {
+                            this.cleanup(delIdx, this.subViews[delIdx].$el);
+                            this.subViews[delIdx].$el.remove();
+                            delete this.subViews[delIdx];
+                        }
                     }
                     this.maxIndex = idx - 1;
                     break;
@@ -113,14 +121,17 @@
                 nextPos += this.subViews[idx].extent;
             }
 
-            // Generate views to the right/above selected view
+            // Generate views to the left/above selected view
             var nextPos = this.subViews[this.selectedIndex].anchorPos;
             for (var idx = this.selectedIndex - 1; ; idx--) {
                 if (this.offset + nextPos < 0) {
                     // We're off-screen; delete everything past this index
                     for (var delIdx = idx; delIdx >= this.minIndex; delIdx--) {
-                        this.subViews[delIdx].$el.remove();
-                        delete this.subViews[delIdx];
+                        if (this.subViews[delIdx]) {
+                            this.cleanup(delIdx, this.subViews[delIdx].$el);
+                            this.subViews[delIdx].$el.remove();
+                            delete this.subViews[delIdx];
+                        }
                     }
                     this.minIndex = idx + 1;
                     break;
@@ -172,6 +183,8 @@
                 this.selectedIndex = closestToCenterIndex;
             }
             this.subViews[this.selectedIndex].$el.addClass("selected");
+
+            this.updating = false;
         };
 
         // Navigate to a particular offset on the ribbon
@@ -314,9 +327,12 @@
 
             // Delete any existing views
             if (this.subViews) {
+                this.updating = true;
                 $.each(this.subViews, $.proxy(function(idx, element) {
+                    this.cleanup(idx, element.$el);
                     element.$el.remove();
-                }));
+                }, this));
+                this.updating = false;
             }
 
             // Cache of all our subviews by index
@@ -330,9 +346,13 @@
         };
 
         this.generator = options.generator;
+        this.cleanup = options.cleanup || $.noop;
         this.dir = (options.direction == "vertical") ? VERTICAL : HORIZONTAL;
         this.noAutoSize = options.noAutoSize || false;
         this.noClickHandler = options.noClickHandler || false;
+
+        // Make updateViews non-reentrant
+        this.updating = false;
 
         // The ribbon element
         this.$el = $el;
