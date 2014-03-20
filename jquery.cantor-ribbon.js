@@ -113,6 +113,7 @@
                     // We haven't generated a view this far out yet, generate
                     // it now
                     if (!this.generateElement(idx)) {
+                        this.maxFinalIndex = this.maxIndex;
                         break;
                     }
                 }
@@ -140,6 +141,7 @@
                     // We haven't generated a view this far out yet, generate
                     // it now
                     if (!this.generateElement(idx)) {
+                        this.minFinalIndex = this.minIndex;
                         break;
                     }
                 }
@@ -187,6 +189,22 @@
             this.updating = false;
         };
 
+        this.clampOffset = function() {
+            if (this.maxFinalIndex != null && this.subViews[this.maxFinalIndex] &&
+                this.offset < this.ribbonExtent / 2 - this.subViews[this.maxFinalIndex].centerPos) {
+                // We've reached the end; don't scroll further
+                this.offset = this.ribbonExtent / 2 - this.subViews[this.maxFinalIndex].centerPos;
+                return true;
+            }
+            if (this.minFinalIndex != null && this.subViews[this.minFinalIndex] &&
+                this.offset > this.ribbonExtent / 2 - this.subViews[this.minFinalIndex].centerPos) {
+                // We've reached the end; don't scroll further
+                this.offset = this.ribbonExtent / 2 - this.subViews[this.minFinalIndex].centerPos;
+                return true;
+            }
+            return false;
+        };
+
         // Navigate to a particular offset on the ribbon
         this.goToOffset = function(offset) {
             // Set the drag state to interpolation
@@ -211,6 +229,11 @@
 
                 // Update subviews
                 this.updateViews(true);
+
+                if (this.clampOffset()) {
+                    this.dragState.target = this.offset;
+                    this.updateViews(true);
+                }
 
                 // Are we done?
                 if (Math.abs(this.offset - this.dragState.target) < 3) {
@@ -271,6 +294,7 @@
             // Update offset
             this.offset = (pos - this.dragState.startPos +
                 this.dragState.startOffset);
+            this.clampOffset();
 
             // Update velocity
             var currentTime = new Date();
@@ -317,6 +341,8 @@
             // Minimum and maximum indices for generated elements
             this.minIndex = index;
             this.maxIndex = index;
+            this.minFinalIndex = null; // We haven't reached the end yet
+            this.maxFinalIndex = null; // We haven't reached the end yet
 
             // Current height (horizontal) or width (vertical) (grows to fit the
             // largest element ever encountered)
