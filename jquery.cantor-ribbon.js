@@ -376,6 +376,7 @@
         this.dir = (options.direction == "vertical") ? VERTICAL : HORIZONTAL;
         this.noAutoSize = options.noAutoSize || false;
         this.noClickHandler = options.noClickHandler || false;
+        this.noDragHandler = options.noDragHandler || false;
 
         // Make updateViews non-reentrant
         this.updating = false;
@@ -408,21 +409,38 @@
         this.resetToIndex(options.startIndex || 0);
 
         // Bind event handlers for click & drag
-        this.$el.on("mousedown", $.proxy(function(event) {
-            if (event.which != 1) {
-                // Only care about left-clicks
-                return;
-            }
-            var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
-            this.handleDragStart(pos);
-        }, this))
-        .on("touchstart", $.proxy(function(event) {
-            var touch = event.originalEvent.touches[0];
-            var pos = (this.dir == HORIZONTAL) ? touch.pageX : touch.pageY;
-            this.handleDragStart(pos);
-        }, this))
+        if (!options.noDragHandler) {
+            this.$el.on("mousedown", $.proxy(function(event) {
+                // Don't handle clicks inside input elements!
+                var element;
+                if(event.target) {
+                    element = event.target;
+                } else if (event.srcElement) {
+                    element = event.srcElement;
+                }
+                if (element.nodeType == 3) {
+                    element = element.parentNode;
+                }
+                if (element.tagName == 'INPUT' || element.tagName == 'TEXTAREA') {
+                    return;
+                }
+
+                if (event.which != 1) {
+                    // Only care about left-clicks
+                    return;
+                }
+                var pos = (this.dir == HORIZONTAL) ? event.clientX : event.clientY;
+                this.handleDragStart(pos);
+            }, this))
+            .on("touchstart", $.proxy(function(event) {
+                var touch = event.originalEvent.touches[0];
+                var pos = (this.dir == HORIZONTAL) ? touch.pageX : touch.pageY;
+                this.handleDragStart(pos);
+            }, this));
+        }
+
         //Firefox
-        .on("DOMMouseScroll", $.proxy(function(event) {
+        this.$el.on("DOMMouseScroll", $.proxy(function(event) {
             if (event.originalEvent.detail > 0) {
                 // scroll down
                 this.goToOffset(this.offset - this.scrollSpeed);
